@@ -1924,11 +1924,13 @@ int flb_input_collector_resume(int coll_id, struct flb_input_instance *in)
 
 int flb_input_collector_fd(flb_pipefd_t fd, struct flb_config *config)
 {
+    int ret;
     struct mk_list *head;
     struct mk_list *head_coll;
     struct flb_input_instance *ins;
     struct flb_input_collector *collector = NULL;
     struct flb_input_coro *input_coro;
+    struct flb_coro *prev_coro = NULL;
 
     mk_list_foreach(head, &config->inputs) {
         ins = mk_list_entry(head, struct flb_input_instance, _head);
@@ -1967,12 +1969,20 @@ int flb_input_collector_fd(flb_pipefd_t fd, struct flb_config *config)
         flb_input_coro_resume(input_coro);
     }
     else {
-        if (collector->cb_collect(collector->instance, config,
-                                  collector->instance->context) == -1) {
-            return -1;
+        prev_coro = flb_coro_get();
+        if (prev_coro) {
+            flb_coro_set(NULL);
+        }
+        ret = collector->cb_collect(collector->instance, config,
+                                  collector->instance->context);
+        if (prev_coro) {
+            flb_coro_set(prev_coro);
         }
     }
 
+    if (ret == -1) {
+        return -1;
+    }
     return 0;
 }
 
