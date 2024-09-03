@@ -296,6 +296,8 @@ static void input_thread(void *data)
     struct flb_input_plugin *p;
     struct flb_sched *sched = NULL;
     struct flb_net_dns dns_ctx = {0};
+    struct flb_coro *prev_coro;
+
 
     thi = (struct flb_input_thread_instance *) data;
     ins = thi->ins;
@@ -405,7 +407,14 @@ static void input_thread(void *data)
                 flb_coro_resume(output_flush->coro);
             }
             else if (event->type == FLB_ENGINE_EV_CUSTOM) {
+                prev_coro = flb_coro_get();
+                if (prev_coro) {
+                    flb_coro_set(NULL);
+                }
                 event->handler(event);
+                if (prev_coro) {
+                    flb_coro_set(prev_coro);
+                }
             }
             else if (event->type == FLB_ENGINE_EV_THREAD) {
                 struct flb_connection *connection;
