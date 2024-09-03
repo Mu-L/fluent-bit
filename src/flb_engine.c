@@ -692,6 +692,7 @@ int flb_engine_start(struct flb_config *config)
     struct flb_bucket_queue *evl_bktq;
     struct flb_sched *sched;
     struct flb_net_dns dns_ctx;
+    struct flb_coro *prev_coro = NULL;
 
     /* Initialize the networking layer */
     flb_net_lib_init();
@@ -1038,7 +1039,14 @@ int flb_engine_start(struct flb_config *config)
                 flb_coro_resume(output_flush->coro);
             }
             else if (event->type == FLB_ENGINE_EV_CUSTOM) {
+                prev_coro = flb_coro_get();
+                if (prev_coro) {
+                    flb_coro_set(NULL);
+                }
                 event->handler(event);
+                if (prev_coro) {
+                    flb_coro_set(prev_coro);
+                }
             }
             else if (event->type == FLB_ENGINE_EV_THREAD) {
                 struct flb_connection *connection;
